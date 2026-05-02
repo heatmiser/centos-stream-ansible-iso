@@ -1,0 +1,32 @@
+<image>
+	<profiles>
+		<profile name="CINNAMON-Live" description="Cinnamon Live DVD">
+			<requires profile="CINNAMON-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+		<profile name="GNOME-Live" description="GNOME Live DVD">
+			<requires profile="GNOME-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+		<profile name="KDE-Live" description="KDE Plasma Live DVD">
+			<requires profile="KDE-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+		<profile name="MATE-Live" description="MATE Live DVD">
+			<requires profile="MATE-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+		<profile name="MAX-Live" description="All Desktops Live DVD">
+			<requires profile="MAX-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+		<profile name="MIN-Live" description="Text Only Live DVD">
+			<requires profile="MIN-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+		<profile name="XFCE-Live" description="XFCE Live DVD">
+			<requires profile="XFCE-Desktop"/>
+			<requires profile="LiveInstall"/>
+		</profile>
+	</profiles>
+</image>

@@ -1,0 +1,73 @@
+<image>
+	<profiles>
+		<profile name="CloudCore" description="Cloud image core packages">
+			<requires profile="BootCore"/>
+		</profile>
+		<profile name="Azure" description="Azure Guest Image">
+			<requires profile="CloudCore"/>
+		</profile>
+		<profile name="AWSEC2" description="AWS EC2 HVM Guest Image">
+			<requires profile="CloudCore"/>
+		</profile>
+		<profile name="GCE" description="GCE Guest Image">
+			<requires profile="CloudCore"/>
+		</profile>
+		<profile name="OpenStack" description="OpenStack Guest Image">
+			<requires profile="CloudCore"/>
+		</profile>
+	</profiles>
+	<preferences profiles="Azure">
+		<type image="oem" filesystem="xfs" kernelcmdline="USE_BY_UUID_DEVICE_NAMES=1 earlyprintk=ttyS0 console=ttyS0 rootdelay=300 net.ifnames=0 dis_ucode_ldr scsi_mod.use_blk_mq=1 multipath=off" devicepersistency="by-uuid" formatoptions="force_size" format="vhd-fixed" bootpartition="true" bootpartsize="1000" bootfilesystem="xfs" efipartsize="100" firmware="uefi">
+			<bootloader name="grub2" console="serial" timeout="1" timeout_style="countdown"/>
+			<size unit="G">5</size>
+			<oemconfig>
+				<oem-resize>false</oem-resize>
+			</oemconfig>
+		</type>
+	</preferences>
+	<preferences profiles="AWSEC2">
+		<type image="oem" filesystem="xfs" kernelcmdline="console=ttyS0 net.ifnames=0 nvme_core.io_timeout=4294967295 nvme_core.admin_timeout=4294967295 8250.nr_uarts=4 dis_ucode_ldr multipath=off" devicepersistency="by-label" bootpartition="true" bootpartsize="1000" bootfilesystem="xfs" efipartsize="100" firmware="uefi">
+			<bootloader name="grub2" timeout="1"/>
+			<size unit="G">5</size>
+			<oemconfig>
+				<oem-resize>false</oem-resize>
+			</oemconfig>
+		</type>
+	</preferences>
+	<preferences profiles="GCE">
+		<type image="oem" filesystem="xfs" kernelcmdline="console=ttyS0,38400n8 multipath=off net.ifnames=0 dis_ucode_ldr" devicepersistency="by-label" bootpartition="true" bootpartsize="1000" bootfilesystem="xfs" efipartsize="100" format="gce" firmware="uefi">
+			<bootloader name="grub2" timeout="1"/>
+			<size unit="G">5</size>
+			<oemconfig>
+				<oem-resize>false</oem-resize>
+			</oemconfig>
+		</type>
+	</preferences>
+	<preferences profiles="OpenStack">
+		<type image="oem" filesystem="xfs" kernelcmdline="console=ttyS0 net.ifnames=0 dis_ucode_ldr" devicepersistency="by-label" bootpartition="true" bootpartsize="1000" bootfilesystem="xfs" efipartsize="100" firmware="uefi" format="qcow2">
+			<bootloader name="grub2" console="serial" timeout="1"/>
+			<size unit="G">5</size>
+			<oemconfig>
+				<oem-resize>false</oem-resize>
+			</oemconfig>
+		</type>
+	</preferences>
+	<packages type="image" patternType="plusRecommended" profiles="CloudCore">
+		<ignore name="dracut-config-rescue"/>
+		<ignore name="firewalld"/>
+		<ignore name="kernel"/>
+		<ignore name="*-firmware"/>
+		<ignore name="geolite2-city"/>
+		<ignore name="geolite2-country"/>
+		<package name="cloud-init"/>
+		<package name="cloud-utils-growpart"/>
+		<package name="gdisk"/>
+		<package name="glibc-langpack-en"/>
+	</packages>
+	<packages type="image" patternType="plusRecommended" profiles="Azure">
+		<package name="WALinuxAgent"/>
+	</packages>
+	<packages type="image" patternType="plusRecommended" profiles="OpenStack">
+		<package name="qemu-guest-agent"/>
+	</packages>
+</image>

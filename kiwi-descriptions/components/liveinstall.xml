@@ -1,0 +1,30 @@
+<image>
+	<profiles>
+		<profile name="LiveInstall" description="Live Install ISO">
+			<requires profile="BootCore"/>
+		</profile>
+	</profiles>
+	<preferences profiles="LiveInstall">
+		<type image="iso" publisher="CentOS AltImages SIG" volid="CentOS_AltImage" primary="true" flags="dmsquash"
+			filesystem="erofs" erofscompression="lzma,level=9"
+			firmware="uefi" efifatimagesize="30" kernelcmdline="quiet rhgb" mediacheck="true"
+		>
+			<bootloader name="grub2" grub_template="grub.cfg.iso-template" console="console" timeout="60"/>
+		</type>
+	</preferences>
+	<packages type="iso" patternType="plusRecommended" profiles="LiveInstall">
+		<!-- The point of a live image is to install -->
+		<namedCollection name="anaconda-tools"/>
+		<package name="anaconda"/>
+		<package name="anaconda-install-env-deps"/>
+		<package name="anaconda-liveinst"/>
+		<package name="dracut-live"/>
+		<package name="glibc-all-langpacks"/>
+		<package name="isomd5sum"/>
+		<package name="kernel"/>
+		<package name="kernel-modules"/>
+		<package name="kernel-modules-extra"/>
+		<package name="livesys-scripts"/>
+		<ignore name="gfs2-utils"/>
+	</packages>
+</image>

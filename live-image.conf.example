@@ -1,0 +1,30 @@
+# Live Image Configuration
+#
+# This file contains plaintext configuration for the live image build.
+# Copy this file to 'live-image.conf' and customize as needed.
+#
+# For sensitive data (password hashes), use live-image-vault.yml instead.
+
+# Username for the automation account
+# This user will have sudo access and SSH enabled
+LIVE_USERNAME="ansible"
+
+# Path to SSH public key file
+# This key will be added to the user's authorized_keys
+# If not set, only password authentication will be available
+LIVE_USER_SSHKEY_FILE="./keys/automation.pub"
+
+# Additional groups for the user (comma-separated)
+# The 'wheel' group is always included for sudo access
+# Example: LIVE_USER_GROUPS="wheel,docker,libvirt"
+LIVE_USER_GROUPS="wheel"
+
+# Password hash (optional, can also be set in vault)
+# Generate with: openssl passwd -6 'YourPasswordHere'
+# Leave empty to use vault or have SSH key-only authentication
+LIVE_USER_PASSWORD_HASH=""
+
+# Direct SSH key (alternative to LIVE_USER_SSHKEY_FILE)
+# Provide the full SSH public key as a string
+# Example: LIVE_USER_SSHKEY="ssh-ed25519 AAAAC3... user@host"
+LIVE_USER_SSHKEY=""

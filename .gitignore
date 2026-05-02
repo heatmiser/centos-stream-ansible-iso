@@ -1,0 +1,37 @@
+# Live Image Build Artifacts and Sensitive Files
+
+# Configuration with credentials
+live-image.conf
+live-image-vault.yml
+.vault_pass
+
+# Temporary credential injection file
+kiwi-descriptions/root/etc/liveimage-credentials.conf
+
+# Build output
+outdir/
+
+# SSH keys
+keys/
+*.pem
+*.key
+id_rsa
+id_ed25519
+id_ecdsa
+
+# Test files
+test-inventory.yml
+test-playbook.yml
+test-key
+test-key.pub
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

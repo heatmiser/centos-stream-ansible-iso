@@ -1,0 +1,32 @@
+# Live Image Vault Configuration (Ansible Vault Encrypted)
+#
+# This file contains sensitive credentials encrypted with ansible-vault.
+# DO NOT commit the actual encrypted vault file with real credentials!
+#
+# To create an encrypted vault from this example:
+#   1. Copy this file: cp live-image-vault.yml.example live-image-vault.yml
+#   2. Edit with your actual credentials
+#   3. Encrypt: podman run --rm -it -v $(pwd):/work:z \
+#               quay.io/ansible/creator-ee:latest \
+#               ansible-vault encrypt /work/live-image-vault.yml
+#
+# To edit the encrypted vault:
+#   podman run --rm -it -v $(pwd):/work:z \
+#     quay.io/ansible/creator-ee:latest \
+#     ansible-vault edit /work/live-image-vault.yml
+#
+# To view the encrypted vault:
+#   podman run --rm -it -v $(pwd):/work:z \
+#     quay.io/ansible/creator-ee:latest \
+#     ansible-vault view /work/live-image-vault.yml
+
+# Password hash for the live user
+# Generate with: openssl passwd -6 'YourPasswordHere'
+# Example: "$6$rounds=5000$saltsalt$hashhashhas..."
+live_user_password_hash: "$6$rounds=5000$CHANGE_THIS$EXAMPLE_HASH"
+
+# Additional SSH public keys (optional)
+# These will be appended to authorized_keys along with the primary key
+additional_ssh_keys:
+  - "ssh-rsa AAAAB3NzaC1... user2@host"
+  - "ssh-ed25519 AAAAC3NzaC1... user3@host"

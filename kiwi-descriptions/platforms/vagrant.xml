@@ -1,0 +1,32 @@
+<image>
+	<profiles>
+		<profile name="Vagrant" description="Vagrant packages">
+			<requires profile="BootCore"/>
+		</profile>
+	</profiles>
+	<preferences profiles="Vagrant">
+		<type image="oem" filesystem="xfs" kernelcmdline="console=ttyS0 net.ifnames=0 dis_ucode_ldr" devicepersistency="by-label" bootpartition="true" bootpartsize="1000" bootfilesystem="xfs" efipartsize="100" firmware="uefi" format="vagrant">
+			<bootloader name="grub2" console="serial" timeout="1"/>
+			<size unit="G">5</size>
+			<oemconfig>
+				<oem-resize>false</oem-resize>
+			</oemconfig>
+		</type>
+	</preferences>
+	<users profiles="Vagrant">
+		<!-- Standard password for the vagrant user, used by all images -->
+		<user name="vagrant" groups="vagrant" password="vagrant" home="/home/vagrant" pwdformat="plain" />
+		<user password="$1$wYJUgpM5$RXMMeASDc035eX.NbYWFl0" home="/root" name="root" groups="root"/>
+	</users>
+	<packages type="image" patternType="plusRecommended" profiles="Vagrant">
+		<ignore name="dracut-config-rescue"/>
+		<ignore name="firewalld"/>
+		<ignore name="kernel"/>
+		<ignore name="*-firmware"/>
+		<ignore name="geolite2-city"/>
+		<ignore name="geolite2-country"/>
+		<package name="gdisk"/>
+		<package name="glibc-langpack-en"/>
+		<package name="qemu-guest-agent"/>
+	</packages>
+</image>

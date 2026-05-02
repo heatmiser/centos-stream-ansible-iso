@@ -1,0 +1,79 @@
+<image>
+	<profiles>
+		<profile name="DesktopCommon" description="Common desktop packages"/>
+		<profile name="GNOME-Desktop" description="GNOME Desktop">
+			<requires profile="DesktopCommon"/>
+		</profile>
+		<profile name="KDE-Desktop" description="KDE Plasma Desktop">
+			<requires profile="DesktopCommon"/>
+		</profile>
+		<profile name="MAX-Desktop" description="ALL The Desktops">
+			<requires profile="DesktopCommon"/>
+			<requires profile="GNOME-Desktop"/>
+			<requires profile="KDE-Desktop"/>
+		</profile>
+		<profile name="MIN-Desktop" description="Text only desktop"/>
+	</profiles>
+	<packages type="image" patternType="plusRecommended" profiles="DesktopCommon">
+		<package name="centos-backgrounds"/>
+		<package name="firefox"/>
+		<package name="flatpak"/>
+		<package name="plymouth-theme-spinner"/>
+		<namedCollection name="container-management"/>
+		<namedCollection name="fonts"/>
+		<namedCollection name="guest-desktop-agents"/>
+		<namedCollection name="hardware-support"/>
+		<namedCollection name="multimedia"/>
+		<namedCollection name="networkmanager-submodules"/>
+		<namedCollection name="print-client"/>
+		<namedCollection name="standard"/>
+		<ignore name="insights-client"/>
+		<ignore name="intel-audio-firmware"/> <!-- Not in CentOS Stream -->
+		<ignore name="libdnf-plugin-subscription-manager"/>
+		<ignore name="subscription-manager"/>
+		<ignore name="subscription-manager-cockpit"/>
+	</packages>
+	<packages type="image" patternType="plusRecommended" profiles="GNOME-Desktop">
+		<namedCollection name="gnome-desktop"/>
+		<namedCollection name="workstation-product"/>
+	</packages>
+	<packages type="image" patternType="plusRecommended" profiles="KDE-Desktop">
+		<package name="plasma-login-manager"/>
+		<package name="plasma-setup"/>
+		<package name="plasma-welcome"/>
+		<namedCollection name="kde-desktop"/>
+		<namedCollection name="kde-apps"/>
+		<namedCollection name="kde-media"/>
+		<package name="fuse"/>
+		<ignore name="abrt-desktop"/>
+		<ignore name="adwaita-gtk2-theme"/>
+		<ignore name="digikam"/>
+		<ignore name="k3b"/>
+		<ignore name="kamoso"/>
+		<ignore name="krusader"/>
+		<ignore name="kpat"/>
+		<ignore name="kwebkitpart"/>
+		<ignore name="NetworkManager-config-connectivity-fedora"/>
+		<ignore name="pinentry-qt"/>
+		<ignore name="plasma-drkonqi"/>
+		<ignore name="plasma-nm-vpnc"/>
+		<ignore name="sddm"/>
+		<ignore name="sddm-breeze"/>
+		<ignore name="sddm-kcm"/>
+		<ignore name="sddm-wayland-plasma"/>
+		<ignore name="sddm-themes"/>
+		<ignore name="sddm-wayland-generic"/>
+		<ignore name="systemd-oomd-defaults"/>
+	</packages>
+	<packages type="image" patternType="plusRecommended" profiles="MAX-Desktop">
+		<ignore name="insights-client"/> <!-- Not in CentOS Stream -->
+	</packages>
+	<packages type="image" patternType="plusRecommended" profiles="MIN-Desktop">
+		<package name="bash"/>
+		<package name="libusbx"/>
+		<package name="openssh-server"/>
+		<package name="python3"/>
+		<package name="sudo"/>
+		<ignore name="insights-client"/> <!-- Not in CentOS Stream -->
+	</packages>
+</image>

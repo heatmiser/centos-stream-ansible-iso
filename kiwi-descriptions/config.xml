@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<image schemaversion="7.4" name="CentOS-Stream-Image">
+	<description type="system">
+		<author>CentOS Alternative Images SIG</author>
+		<contact>sig-altimages@centosproject.org</contact>
+		<specification>CentOS Stream Alternative Images</specification>
+	</description>
+	<preferences>
+		<version>10</version>
+		<packagemanager>dnf</packagemanager>
+		<locale>en_US</locale>
+		<keytable>us</keytable>
+		<timezone>UTC</timezone>
+		<release-version>10</release-version>
+	</preferences>
+	<include from="this://./repositories/core.xml"/>
+	<include from="this://./repositories/epel.xml"/>
+	<include from="this://./components/boot.xml"/>
+	<include from="this://./components/desktop-environments.xml"/>
+	<include from="this://./components/liveinstall.xml"/>
+	<include from="this://./components/users.xml"/>
+	<include from="this://./components/wsl.xml"/>
+	<include from="this://./platforms/cloud.xml"/>
+	<include from="this://./platforms/workstation.xml"/>
+	<packages type="image" patternType="plusRecommended">
+		<namedCollection name="core"/>
+		<package name="chrony"/>
+		<package name="nano"/>
+		<package name="yum-utils"/>
+	</packages>
+	<packages type="bootstrap">
+		<package name="basesystem"/>
+		<package name="filesystem"/>
+	</packages>
+</image>
