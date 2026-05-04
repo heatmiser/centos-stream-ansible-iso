@@ -185,14 +185,30 @@ live_user_password_hash: "$6$rounds=5000$salt$hash..."
 
 ### Boot Test
 
+**Prerequisites:**
 ```bash
-# Start VM with ISO
+# Install OVMF UEFI firmware (required for proper UEFI boot)
+# Fedora/RHEL:
+sudo dnf install edk2-ovmf
+
+# Debian/Ubuntu:
+sudo apt install ovmf
+```
+
+**Boot the ISO in UEFI mode:**
+```bash
 qemu-system-x86_64 -m 2048 \
-  -cdrom outdir/CentOS-Stream-Alternative-Images.x86_64-*.iso \
+  -machine q35 \
+  -enable-kvm \
+  -cpu host \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+  -cdrom outdir/CentOS-Stream-MIN-Live-Automation.x86_64-10.iso \
   -boot d \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0
 ```
+
+**Note:** The ISO is designed for UEFI boot. Legacy BIOS boot may not work correctly.
 
 ### Console Verification
 

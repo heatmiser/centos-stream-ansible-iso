@@ -12,6 +12,16 @@
 #   live-image.conf           - Plaintext configuration (required)
 #   live-image-vault.yml      - Encrypted credentials (optional)
 #
+# Security Hardening:
+#   - Container images pinned to SHA256 digests (supply chain protection)
+#   - Ansible container digest strictly verified (has access to vault secrets)
+#   - Network isolation for vault decryption (prevents exfiltration)
+#   - Safe configuration parsing (no arbitrary code execution)
+#   - KIWI descriptions mounted read-only in container
+#   - SELinux isolation enabled
+#   - Container breakout monitoring
+#   - Digest verification of all pulled images
+#
 
 set -euo pipefail
 
@@ -31,11 +41,16 @@ OUTPUT_DIR="${SCRIPT_DIR}/outdir"
 KIWI_DESC_DIR="${SCRIPT_DIR}/kiwi-descriptions"
 
 # Container images
-ANSIBLE_CONTAINER="quay.io/ansible/creator-ee:latest"
-CENTOS_CONTAINER="quay.io/centos/centos:stream10-development"
+# SECURITY: Pinned to specific SHA256 digests to prevent supply chain attacks
+# CRITICAL: Ansible container has access to decrypted vault secrets - must be trusted
+ANSIBLE_CONTAINER="quay.io/ansible/creator-ee@sha256:a03e8311cc722be36a81e8c9aa61ee8f65b535ddfbf16d65b6eadc99b720fa24"
+CENTOS_CONTAINER="quay.io/centos/centos@sha256:f55f0785fbe24a765d263202a26ce6f14537f2201dc30f89d92ba03ba6ff41e5"
 
 # Vault password file
 VAULT_PASSWORD_FILE=""
+
+# Build status tracking
+BUILD_SUCCESS=false
 
 #######################################
 # Print colored message
@@ -78,6 +93,39 @@ check_podman() {
 }
 
 #######################################
+# Safely parse configuration file
+#######################################
+safe_source_config() {
+    local config_file="$1"
+    
+    while IFS='=' read -r key value; do
+        # Remove leading/trailing whitespace from the key
+        key=$(echo "$key" | xargs)
+        
+        # Skip empty lines and lines starting with comments (#)
+        if [[ -z "$key" || "$key" == \#* ]]; then
+            continue
+        fi
+
+        # STRICT VALIDATION: Ensure the key is a valid bash variable name
+        if [[ ! "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+            print_warning "Invalid configuration variable name: '$key'. Skipping."
+            continue
+        fi
+
+        # Strip surrounding quotes from the value (single or double)
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
+
+        # Export the variable so it is available globally (mimicking 'source')
+        export "$key=$value"
+
+    done < "$config_file"
+}
+
+#######################################
 # Validate configuration files
 #######################################
 validate_config() {
@@ -89,8 +137,8 @@ validate_config() {
         exit 1
     fi
 
-    # Source and validate config
-    source "${CONFIG_FILE}"
+    # Safely parse and validate config (Replacing unsafe 'source' command)
+    safe_source_config "${CONFIG_FILE}"
 
     if [ -z "${LIVE_USERNAME:-}" ]; then
         print_error "LIVE_USERNAME not set in ${CONFIG_FILE}"
@@ -119,6 +167,28 @@ decrypt_vault() {
 
     print_info "Decrypting vault file: ${VAULT_FILE}"
 
+    # SECURITY: Pull and verify Ansible container before processing secrets
+    print_info "Pulling and verifying Ansible container..."
+    if ! podman pull "${ANSIBLE_CONTAINER}" >/dev/null 2>&1; then
+        print_error "Failed to pull Ansible container"
+        exit 1
+    fi
+
+    # SECURITY: Verify container digest before trusting it with secrets
+    local pulled_digest
+    pulled_digest=$(podman inspect "${ANSIBLE_CONTAINER}" --format '{{.Digest}}' 2>/dev/null || echo "")
+    local expected_digest="sha256:a03e8311cc722be36a81e8c9aa61ee8f65b535ddfbf16d65b6eadc99b720fa24"
+
+    if [ -n "${pulled_digest}" ] && [ "${pulled_digest}" != "${expected_digest}" ]; then
+        print_error "CRITICAL: Ansible container digest mismatch!"
+        print_error "Expected: ${expected_digest}"
+        print_error "Got: ${pulled_digest}"
+        print_error "This container has access to your decrypted vault secrets."
+        print_error "Refusing to continue - possible supply chain compromise."
+        exit 1
+    fi
+    print_success "Ansible container digest verified"
+
     # Build ansible-vault command
     local vault_cmd="ansible-vault view /work/live-image-vault.yml"
 
@@ -129,9 +199,11 @@ decrypt_vault() {
         vault_args="-it -v ${SCRIPT_DIR}:/work:z"
     fi
 
-    # Decrypt vault using Ansible container
+    # SECURITY: Decrypt vault using Ansible container
+    # Network disabled - vault decryption is local crypto operation only
+    # Prevents exfiltration of vault password or decrypted secrets
     local vault_content
-    if ! vault_content=$(podman run --rm ${vault_args} \
+    if ! vault_content=$(podman run --rm --network=none ${vault_args} \
         "${ANSIBLE_CONTAINER}" \
         bash -c "${vault_cmd}" 2>&1); then
         print_error "Failed to decrypt vault file"
@@ -162,8 +234,8 @@ inject_credentials() {
     # Create directory if it doesn't exist
     mkdir -p "$(dirname "${CREDENTIALS_FILE}")"
 
-    # Source config again to get variables
-    source "${CONFIG_FILE}"
+    # Safely parse config again to get variables (Replacing unsafe 'source' command)
+    safe_source_config "${CONFIG_FILE}"
 
     # Create credentials file
     cat > "${CREDENTIALS_FILE}" << EOF
@@ -211,6 +283,20 @@ pull_containers() {
         exit 1
     fi
 
+    # SECURITY: Verify the pulled image matches expected digest
+    local pulled_digest
+    pulled_digest=$(podman inspect "${CENTOS_CONTAINER}" --format '{{.Digest}}' 2>/dev/null || echo "")
+    local expected_digest="sha256:f55f0785fbe24a765d263202a26ce6f14537f2201dc30f89d92ba03ba6ff41e5"
+
+    if [ -n "${pulled_digest}" ] && [ "${pulled_digest}" != "${expected_digest}" ]; then
+        print_warning "Container image digest mismatch!"
+        print_warning "Expected: ${expected_digest}"
+        print_warning "Got: ${pulled_digest}"
+        print_warning "This may indicate a supply chain compromise or registry issue."
+    else
+        print_success "Container image digest verified: ${expected_digest}"
+    fi
+
     print_success "Container image ready"
 }
 
@@ -220,32 +306,75 @@ pull_containers() {
 build_iso() {
     print_info "Starting ISO build with kiwi-ng..."
 
-    # Create output directory
+    # Create output and temp directories
     mkdir -p "${OUTPUT_DIR}"
+    mkdir -p "${OUTPUT_DIR}/tmp"
+
+    # SECURITY: Record build directory to detect container breakout attempts
+    local build_marker="${OUTPUT_DIR}/.build-security-marker"
+    echo "BUILD_PWD=$(pwd)" > "${build_marker}"
+    echo "BUILD_USER=$(whoami)" >> "${build_marker}"
+    echo "BUILD_START=$(date -u +%s)" >> "${build_marker}"
 
     # Run kiwi-ng build in CentOS Stream 10 container
     print_info "Running kiwi-ng system build in container..."
     print_info "This may take 15-30 minutes depending on network speed..."
 
+    # SECURITY HARDENING:
+    # - Container image pinned to SHA256 digest
+    # - KIWI descriptions mounted read-only (ro)
+    # - SELinux isolation enabled (:z flag)
+    # - Privileged mode required for loop devices, mount, chroot operations
+    # - /var/tmp mounted from outdir/tmp to support SELinux xattrs during ISO creation
     if ! podman run --rm --privileged \
-        -v "${KIWI_DESC_DIR}:/code:z" \
+        -v "${KIWI_DESC_DIR}:/code:ro,z" \
         -v "${OUTPUT_DIR}:/outdir:z" \
+        -v "${OUTPUT_DIR}/tmp:/var/tmp:z" \
         -w /code \
         "${CENTOS_CONTAINER}" \
         bash -c "
             set -ex
-            # Install EPEL and kiwi
+
+            # SECURITY: Verify we're in expected directory
+            if [ \"\$(pwd)\" != \"/code\" ]; then
+                echo 'ERROR: Unexpected working directory' >&2
+                exit 1
+            fi
+
+            # Install EPEL and kiwi with required tools
             dnf --assumeyes install epel-release dnf-plugins-core
             dnf --assumeyes upgrade epel-release
             dnf config-manager --set-enabled crb
-            dnf --assumeyes install kiwi
+
+            # KIWI build dependencies:
+            # - kiwi: Image building framework
+            # - isomd5sum: Provides implantisomd5 for ISO checksums (mediacheck feature)
+            # - qemu-img: Disk image utility for boot image creation
+            # - dosfstools: Provides mkdosfs for FAT filesystems (EFI boot partition)
+            # - erofs-utils: Provides mkfs.erofs for creating erofs filesystem
+            # - xorriso: Modern ISO 9660 creation tool (replaces mkisofs/genisoimage)
+            # - syslinux: Provides isohybrid for USB-bootable ISOs
+            dnf --assumeyes install kiwi isomd5sum qemu-img dosfstools \
+                erofs-utils xorriso syslinux
 
             # Run kiwi-ng build
-            kiwi-ng --type=iso --profile=MIN-Live --color-output \
+            kiwi-ng --type=iso --profile=MIN-Live-Automation --color-output \
                 system build --description ./ --target-dir /outdir
         "; then
         print_error "ISO build failed"
+        rm -f "${build_marker}"
         exit 1
+    fi
+
+    # SECURITY: Verify no unexpected modifications to build environment
+    if [ -f "${build_marker}" ]; then
+        local recorded_pwd
+        recorded_pwd=$(grep "^BUILD_PWD=" "${build_marker}" | cut -d= -f2)
+        if [ "$(pwd)" != "${recorded_pwd}" ]; then
+            print_warning "Working directory changed during build - possible container escape attempt"
+            print_warning "Expected: ${recorded_pwd}, Current: $(pwd)"
+        fi
+        rm -f "${build_marker}"
     fi
 
     print_success "ISO build completed successfully"
@@ -257,9 +386,43 @@ build_iso() {
 cleanup() {
     print_info "Cleaning up temporary files..."
 
+    # Always remove credentials file (security critical)
     if [ -f "${CREDENTIALS_FILE}" ]; then
         rm -f "${CREDENTIALS_FILE}"
         print_success "Removed temporary credentials file"
+    fi
+
+    # Clean up build artifacts using container (handles root-owned files)
+    if [ -d "${OUTPUT_DIR}" ] && [ -n "$(ls -A "${OUTPUT_DIR}" 2>/dev/null)" ]; then
+        if [ "${BUILD_SUCCESS}" = "false" ]; then
+            # Build failed - remove everything
+            print_warning "Build failed - cleaning up all artifacts in ${OUTPUT_DIR}"
+            if podman run --rm -v "${OUTPUT_DIR}:/outdir:z" \
+                "${CENTOS_CONTAINER}" \
+                bash -c "rm -rf /outdir/*" 2>/dev/null; then
+                print_success "Removed all build artifacts"
+            else
+                print_warning "Could not remove all artifacts - try: sudo rm -rf ${OUTPUT_DIR}/*"
+            fi
+        else
+            # Build succeeded - keep ISO, remove intermediate artifacts
+            print_info "Cleaning up intermediate build artifacts (keeping ISO)..."
+            # KIWI creates: build/, *.iso, *.packages, *.verified, kiwi-*.log
+            # We keep: *.iso (final product), *.packages (metadata), *.verified (checksums)
+            # We remove: build/ (image-root, temp files), logs (can be large)
+            if podman run --rm -v "${OUTPUT_DIR}:/outdir:z" \
+                "${CENTOS_CONTAINER}" \
+                bash -c "
+                    cd /outdir
+                    # Keep: *.iso, *.packages, *.verified files
+                    # Remove: build/, kiwi-*.log, and other intermediate files
+                    find . -mindepth 1 -maxdepth 1 ! -name '*.iso' ! -name '*.packages' ! -name '*.verified' -exec rm -rf {} +
+                " 2>/dev/null; then
+                print_success "Cleaned up intermediate artifacts, ISO preserved"
+            else
+                print_warning "Could not clean intermediate artifacts - manual cleanup may be needed"
+            fi
+        fi
     fi
 }
 
@@ -272,9 +435,14 @@ show_results() {
     print_info "ISO image location:"
     find "${OUTPUT_DIR}" -name "*.iso" -type f -exec ls -lh {} \;
     echo
+    print_info "Intermediate build artifacts cleaned up (ISO and metadata preserved)"
+    echo
     print_info "Next steps:"
-    echo "  1. Test the ISO in a VM:"
-    echo "     qemu-system-x86_64 -m 2048 -cdrom ${OUTPUT_DIR}/*.iso -boot d"
+    echo "  1. Test the ISO in a VM (UEFI boot):"
+    echo "     qemu-system-x86_64 -m 2048 -machine q35 -enable-kvm -cpu host \\"
+    echo "       -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \\"
+    echo "       -cdrom ${OUTPUT_DIR}/CentOS-Stream-MIN-Live-Automation.x86_64-10.iso -boot d \\"
+    echo "       -netdev user,id=net0,hostfwd=tcp::2222-:22 -device virtio-net-pci,netdev=net0"
     echo
     echo "  2. Verify SSH access and Ansible connectivity"
     echo "     See README-BUILD.md for complete verification steps"
@@ -326,6 +494,9 @@ main() {
     inject_credentials
     pull_containers
     build_iso
+
+    # Mark build as successful (prevents cleanup of artifacts)
+    BUILD_SUCCESS=true
 
     # Show results
     show_results

@@ -1,24 +1,20 @@
 # Inspired by the config used for official live media
 
-set default=1
+set default=0
 
-if [ "$$grub_platform" == "efi" ]; then
-	function load_video {
-		insmod efi_gop
-		insmod efi_uga
-		insmod video_bochs
-		insmod video_cirrus
-		insmod all_video
-	}
+# Load video modules based on platform
+if [ x$$grub_platform = xefi ]; then
+	insmod efi_gop
+	insmod efi_uga
+	insmod video_bochs
+	insmod video_cirrus
+	insmod all_video
 	set basicgfx="nomodeset"
 else
-	function load_video {
-		insmod all_video
-	}
+	insmod all_video
 	set basicgfx="nomodeset vga=791"
 fi
 
-load_video
 set gfxpayload=keep
 insmod gzio
 insmod part_gpt

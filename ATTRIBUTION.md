@@ -36,6 +36,10 @@ The following files have been modified from upstream:
      - python3
      - sudo
 
+3. **kiwi-descriptions/platforms/workstation.xml** (line 23)
+   - Changed MIN-Live profile to MIN-Live-Automation
+   - Changed dependency from LiveInstall to MinLiveBoot
+
 ## New Files Added
 
 The following files are original to this project and not from upstream:
@@ -43,10 +47,13 @@ The following files are original to this project and not from upstream:
 - `build-live-image.sh` - Containerized build wrapper
 - `live-image.conf.example` - Configuration template
 - `live-image-vault.yml.example` - Vault template
+- `kiwi-descriptions/components/minlive-boot.xml` - Minimal live boot profile (no installer)
 - `README-BUILD.md` - Build documentation
-- `CLAUDE.md` - Project documentation
+- `README.md` - Main project documentation
+- `CLAUDE.md` - Architecture and development guide
 - `ATTRIBUTION.md` - This file
 - `UPSTREAM-SYNC.md` - Upstream sync workflow
+- `GIT-SETUP.md` - Git repository setup guide
 - `.gitignore` - Git ignore rules
 - `LICENSE` - Copy of GPL-3.0 from upstream
 

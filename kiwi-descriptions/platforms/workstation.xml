@@ -20,9 +20,9 @@
 			<requires profile="MAX-Desktop"/>
 			<requires profile="LiveInstall"/>
 		</profile>
-		<profile name="MIN-Live" description="Text Only Live DVD">
+		<profile name="MIN-Live-Automation" description="Minimal Live ISO for Automation (no installer)">
 			<requires profile="MIN-Desktop"/>
-			<requires profile="LiveInstall"/>
+			<requires profile="MinLiveBoot"/>
 		</profile>
 		<profile name="XFCE-Live" description="XFCE Live DVD">
 			<requires profile="XFCE-Desktop"/>

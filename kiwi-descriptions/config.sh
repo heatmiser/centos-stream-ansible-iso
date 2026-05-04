@@ -90,21 +90,23 @@ if [[ "$kiwi_profiles" == *"Live"* ]]; then
 	if [[ "$kiwi_profiles" == *"MAX"* ]]; then
 		echo 'livesys_session="max"' > /etc/sysconfig/livesys
 	fi
-	if [[ "$kiwi_profiles" == *"MIN-Live"* ]]; then
+	if [[ "$kiwi_profiles" == *"MIN-Live-Automation"* ]]; then
 		echo 'livesys_session="min"' > /etc/sysconfig/livesys
 	fi
 	if [[ "$kiwi_profiles" == *"XFCE"* ]]; then
 		echo 'livesys_session="xfce"' > /etc/sysconfig/livesys
 	fi
-	# anaconda-live icon is not being found.
-	sed -i "s/org.fedoraproject.AnacondaInstaller/anaconda/" /usr/share/applications/liveinst.desktop
+	# anaconda-live icon is not being found (only applies to profiles with installer)
+	if [ -f /usr/share/applications/liveinst.desktop ]; then
+		sed -i "s/org.fedoraproject.AnacondaInstaller/anaconda/" /usr/share/applications/liveinst.desktop
+	fi
 
 fi
 
 #======================================
 # Setup default target
 #--------------------------------------
-if [[ "$kiwi_profiles" == *"Live"* ]] && ! [[ "$kiwi_profiles" == *"MIN-Live"* ]] ; then
+if [[ "$kiwi_profiles" == *"Live"* ]] && ! [[ "$kiwi_profiles" == *"MIN-Live-Automation"* ]] ; then
 	systemctl set-default graphical.target
 else
 	systemctl set-default multi-user.target
@@ -144,11 +146,34 @@ fi
 #======================================
 # There is no setup for MIN, create our own
 #--------------------------------------
-if [[ "$kiwi_profiles" == *"MIN-Live"* ]]; then
+if [[ "$kiwi_profiles" == *"MIN-Live-Automation"* ]]; then
 
 # Load custom credentials if provided
+# SECURITY: Safe parsing to prevent arbitrary code execution
 if [ -f /etc/liveimage-credentials.conf ]; then
-	source /etc/liveimage-credentials.conf
+	while IFS='=' read -r key value; do
+		# Remove leading/trailing whitespace
+		key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+		# Skip empty lines and comments
+		if [[ -z "$key" || "$key" == \#* ]]; then
+			continue
+		fi
+
+		# Validate variable name (alphanumeric and underscore only)
+		if [[ ! "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+			continue
+		fi
+
+		# Strip quotes from value
+		value="${value%\"}"
+		value="${value#\"}"
+		value="${value%\'}"
+		value="${value#\'}"
+
+		# Export the variable
+		export "$key=$value"
+	done < /etc/liveimage-credentials.conf
 fi
 
 # Set defaults
@@ -159,12 +184,12 @@ LIVE_USER_GROUPS="${LIVE_USER_GROUPS:-wheel}"
 useradd -m -G "${LIVE_USER_GROUPS}" -s /bin/bash "${LIVE_USERNAME}"
 
 # Set password if provided
-if [ -n "${LIVE_USER_PASSWORD_HASH}" ]; then
+if [ -n "${LIVE_USER_PASSWORD_HASH:-}" ]; then
 	echo "${LIVE_USERNAME}:${LIVE_USER_PASSWORD_HASH}" | chpasswd -e
 fi
 
 # Configure SSH key if provided
-if [ -n "${LIVE_USER_SSHKEY}" ]; then
+if [ -n "${LIVE_USER_SSHKEY:-}" ]; then
 	mkdir -p "/home/${LIVE_USERNAME}/.ssh"
 	echo "${LIVE_USER_SSHKEY}" > "/home/${LIVE_USERNAME}/.ssh/authorized_keys"
 	chmod 700 "/home/${LIVE_USERNAME}/.ssh"
@@ -173,7 +198,7 @@ if [ -n "${LIVE_USER_SSHKEY}" ]; then
 fi
 
 # Add additional SSH keys if provided
-if [ -n "${LIVE_USER_ADDITIONAL_SSHKEYS}" ]; then
+if [ -n "${LIVE_USER_ADDITIONAL_SSHKEYS:-}" ]; then
 	mkdir -p "/home/${LIVE_USERNAME}/.ssh"
 	echo "${LIVE_USER_ADDITIONAL_SSHKEYS}" >> "/home/${LIVE_USERNAME}/.ssh/authorized_keys"
 	chmod 700 "/home/${LIVE_USERNAME}/.ssh"
@@ -216,8 +241,10 @@ ExecStart=
 ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin ${LIVE_USERNAME} %I \$TERM
 MIN_LOGIN_EOF
 chmod 755 /etc/systemd/system/getty@tty1.service.d/autologin.conf
-# Cleanup Autologin after install
-cat > /usr/share/anaconda/post-scripts/86-noauto.ks << FIXBOOT_EOF
+
+# Cleanup Autologin after install (only for profiles with Anaconda installer)
+if [ -d /usr/share/anaconda/post-scripts ]; then
+	cat > /usr/share/anaconda/post-scripts/86-noauto.ks << FIXBOOT_EOF
 %post
 
 echo "Cleanup Autologin"
@@ -225,6 +252,7 @@ rm -rf /etc/systemd/system/getty@tty1.service.d
 
 %end
 FIXBOOT_EOF
+fi
 
 fi
 
