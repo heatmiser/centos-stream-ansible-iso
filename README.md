@@ -86,12 +86,20 @@ podman run --rm -it -v $(pwd):/work:z \
 ### Test in QEMU
 
 ```bash
-qemu-system-x86_64 \
-  -m 2048 \
-  -cdrom outdir/CentOS-*.iso \
+# UEFI boot (recommended - ISO is designed for UEFI)
+qemu-system-x86_64 -m 2048 \
+  -machine q35 \
+  -enable-kvm \
+  -cpu host \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+  -cdrom outdir/CentOS-Stream-MIN-Live-Automation.x86_64-10.iso \
   -boot d \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0
+
+# Note: Requires OVMF firmware
+# Fedora/RHEL: sudo dnf install edk2-ovmf
+# Debian/Ubuntu: sudo apt install ovmf
 
 # SSH from another terminal
 ssh -i keys/automation -p 2222 ansible@localhost

@@ -2,16 +2,19 @@
 
 ## Project Overview
 
-This project creates customized CentOS Stream 10 text-only live ISOs for bare metal automation with Ansible. Built on top of the upstream CentOS SIG Alt Images project with local customizations for automation workflows.
+This project creates customized CentOS Stream 10 minimal live ISOs for bare metal automation with Ansible. Built on top of the upstream CentOS SIG Alt Images project with local customizations for automation workflows.
+
+**Profile:** MIN-Live-Automation - A truly minimal live ISO without the Anaconda installer, optimized for automation use cases only.
 
 ## Purpose
 
-Generate bootable live ISOs with:
+Generate bootable UEFI live ISOs with:
 - SSH server enabled from boot
 - Python3 for Ansible automation
 - Configurable user with SSH key/password authentication
 - Passwordless sudo access
 - Fully containerized, portable build process
+- No installer (automation-only use case)
 
 ## Architecture
 
@@ -42,11 +45,24 @@ centos-sig-alt-images/                    # Project root (not a git repo)
    - Enables sshd service
    - Updates autologin for custom username
 
-2. `kiwi-descriptions/components/desktop-environments.xml` (lines 71-75)
+2. `kiwi-descriptions/components/desktop-environments.xml` (lines 71-76)
    - Added packages to MIN-Desktop profile:
      - openssh-server
      - python3
      - sudo
+
+**New Files Created:**
+3. `kiwi-descriptions/components/minlive-boot.xml`
+   - New minimal live boot profile (replaces LiveInstall for automation use case)
+   - ISO preferences: firmware, bootloader, mediacheck
+   - Essential live packages: dracut-live, livesys-scripts, kernel, isomd5sum
+   - **Excludes installer**: No anaconda, no language packs, no install environment
+   - Result: ~200-250 MB smaller ISO optimized for automation
+
+**Profile Changes:**
+4. `kiwi-descriptions/platforms/workstation.xml`
+   - Changed MIN-Live to MIN-Live-Automation
+   - Now requires MinLiveBoot instead of LiveInstall
 
 ### Build Process
 
@@ -59,8 +75,11 @@ centos-sig-alt-images/                    # Project root (not a git repo)
 2. Decrypt `live-image-vault.yml` (if exists) using Ansible container
 3. Merge configuration and create credential injection file
 4. Run kiwi-ng build in CentOS Stream 10 container
-5. Clean up temporary credential files
+5. Clean up temporary credential files and intermediate build artifacts
 6. Output ISO to `outdir/`
+   - `CentOS-Stream-MIN-Live-Automation.x86_64-10.iso` - Bootable UEFI ISO
+   - `CentOS-Stream-MIN-Live-Automation.x86_64-10.packages` - Package list
+   - `CentOS-Stream-MIN-Live-Automation.x86_64-10.verified` - ISO checksums
 
 ## Configuration
 
@@ -123,10 +142,65 @@ podman run --rm -it -v $(pwd):/work:z \
 
 ## Security
 
-- **Credentials at rest**: Encrypted with Ansible Vault
+### Build Process Hardening
+
+The build system implements multiple security layers to protect against compromise:
+
+**Container Image Integrity:**
+- **ALL** container images pinned to SHA256 digests (not mutable tags)
+- Prevents supply chain attacks via image substitution
+- Digest verification after pull to detect tampering
+
+**Critical Security Consideration - Ansible Container:**
+The Ansible container (`quay.io/ansible/creator-ee`) has access to your **decrypted vault secrets** in plaintext, including:
+- Vault password (if using password file)
+- Decrypted password hashes
+- SSH keys from vault
+
+**Protection measures:**
+- Pinned to SHA256 digest: `sha256:a03e8311cc722be36a81e8c9aa61ee8f65b535ddfbf16d65b6eadc99b720fa24`
+- **Strict digest verification** - build fails if digest doesn't match (not just warning)
+- **Network isolation** - runs with `--network=none` to prevent exfiltration
+- Vault decryption is a local crypto operation and doesn't require network access
+
+**Build container (CentOS Stream 10):**
+- Pinned to SHA256 digest: `sha256:f55f0785fbe24a765d263202a26ce6f14537f2201dc30f89d92ba03ba6ff41e5`
+- Digest verification with warning on mismatch
+- Network access required for package installation from repositories
+
+**Configuration Safety:**
+- Safe configuration parsing without `source` command
+- Prevents arbitrary code execution from config files
+- Variable name validation (alphanumeric + underscore only)
+- Applied to both `build-live-image.sh` and `config.sh`
+
+**Container Isolation:**
+- KIWI descriptions mounted read-only in container (`:ro` flag)
+- SELinux isolation enabled (`:z` flag)
+- Container breakout monitoring via directory tracking
+- Privileged mode required only for loop devices, mount, chroot operations
+
+**Credential Security:**
+- **Credentials at rest**: Encrypted with Ansible Vault (AES256)
 - **Credentials in transit**: Injected as temporary file, deleted after build
+- **Exposure window**: Only during build (~15-30 minutes)
+- **File permissions**: 600 (owner read/write only)
+
+**Authentication:**
 - **SSH authentication**: Key-based preferred, password fallback supported
 - **Sudo access**: Passwordless for wheel group (automation requirement)
+
+### Security Tradeoffs
+
+**Privileged Container:**
+- Required for KIWI's loop device, mount, and chroot operations
+- Mitigated by: SHA256 pinning, read-only mounts, SELinux, monitoring
+- Alternative: Run on dedicated build host with limited access
+
+**Upstream Trust:**
+- Trusts CentOS Stream repositories for package installation
+- Trusts upstream KIWI descriptions from CentOS SIG Alt Images
+- Mitigated by: Using official Red Hat/CentOS infrastructure
 
 ### Files Never to Commit
 
@@ -137,6 +211,38 @@ podman run --rm -it -v $(pwd):/work:z \
 - `keys/*` (SSH keys)
 
 All protected by `.gitignore`.
+
+### Updating Container Digests
+
+When updating to newer container images:
+
+**CentOS Stream 10 Build Container:**
+```bash
+# Pull latest
+podman pull quay.io/centos/centos:stream10-development
+
+# Get new digest
+podman inspect quay.io/centos/centos:stream10-development --format '{{.Digest}}'
+
+# Update CENTOS_CONTAINER in build-live-image.sh with new digest
+# Update expected_digest in pull_containers() function
+# Test build, then commit
+```
+
+**Ansible Creator EE Container (CRITICAL - handles vault secrets):**
+```bash
+# Pull latest
+podman pull quay.io/ansible/creator-ee:latest
+
+# Get new digest
+podman inspect quay.io/ansible/creator-ee:latest --format '{{.Digest}}'
+
+# Update ANSIBLE_CONTAINER in build-live-image.sh with new digest
+# Update expected_digest in decrypt_vault() function
+# Test vault decryption, then commit
+```
+
+**⚠️ IMPORTANT:** Always verify the source and integrity of new container images before pinning, especially the Ansible container which has access to decrypted secrets.
 
 ## Upstream Sync
 
@@ -168,9 +274,21 @@ Edit `kiwi-descriptions/config.sh`, MIN-Live section (starts around line 147).
 ### Testing Changes
 
 See README-BUILD.md for complete testing procedures including:
-- ISO boot verification
+- ISO boot verification (requires UEFI boot - OVMF firmware)
 - SSH access testing
 - Ansible connectivity testing
+
+**Quick Test:**
+```bash
+# Boot in QEMU with UEFI
+qemu-system-x86_64 -m 2048 -machine q35 -enable-kvm -cpu host \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+  -cdrom outdir/CentOS-Stream-MIN-Live-Automation.x86_64-10.iso -boot d \
+  -netdev user,id=net0,hostfwd=tcp::2222-:22 -device virtio-net-pci,netdev=net0
+
+# Test SSH (from another terminal)
+ssh -i keys/automation -p 2222 ansible@localhost 'sudo whoami'
+```
 
 ## Standards and Conventions
 
