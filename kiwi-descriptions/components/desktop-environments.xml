@@ -70,6 +70,9 @@
 	</packages>
 	<packages type="image" patternType="plusRecommended" profiles="MIN-Desktop">
 		<package name="bash"/>
+		<package name="bind-utils"/>
+		<package name="curl"/>
+		<package name="dmidecode"/>
 		<package name="libusbx"/>
 		<package name="openssh-server"/>
 		<package name="python3"/>

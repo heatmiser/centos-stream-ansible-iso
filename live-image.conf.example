@@ -28,3 +28,18 @@ LIVE_USER_PASSWORD_HASH=""
 # Provide the full SSH public key as a string
 # Example: LIVE_USER_SSHKEY="ssh-ed25519 AAAAC3... user@host"
 LIVE_USER_SSHKEY=""
+
+# =============================================================================
+# ACM cluster onboarding — node registration
+# =============================================================================
+# DNS domain for SRV record lookup at boot time.
+# The node queries: _acm-listener._tcp.<ACM_DNS_DOMAIN>
+# to discover the Ansible controller's registration listener IP and port.
+# Must match cluster_onboard_dns_srv_domain in ansible/vars/acm_config.yml.
+ACM_DNS_DOMAIN=""
+
+# SRV service name — must match cluster_onboard_mdns_service_name in acm_config.yml.
+ACM_LISTENER_SERVICE="_acm-listener._tcp"
+
+# Set to "false" to boot without attempting registration (e.g. for testing).
+ACM_REGISTRATION_ENABLED="true"

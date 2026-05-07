@@ -209,6 +209,23 @@ fi
 # Enable SSH service
 systemctl enable sshd.service
 
+# === ACM REGISTRATION SERVICE ===
+# Write /etc/acm-register.conf from credentials parsed above so the
+# acm-register.service can read them at boot time without re-parsing.
+# Only written when ACM_REGISTRATION_ENABLED is present in credentials.
+if [ -n "${ACM_REGISTRATION_ENABLED:-}" ]; then
+	cat > /etc/acm-register.conf << ACM_CONF_EOF
+ACM_DNS_DOMAIN=${ACM_DNS_DOMAIN:-}
+ACM_LISTENER_SERVICE=${ACM_LISTENER_SERVICE:-_acm-listener._tcp}
+ACM_REGISTRATION_ENABLED=${ACM_REGISTRATION_ENABLED:-true}
+ACM_CONF_EOF
+	chmod 644 /etc/acm-register.conf
+
+	if [ "${ACM_REGISTRATION_ENABLED}" = "true" ]; then
+		systemctl enable acm-register.service
+	fi
+fi
+
 # Configure passwordless sudo for wheel group
 cat > /etc/sudoers.d/90-liveimage-user << SUDO_EOF
 ## Allow members of wheel group to execute any command without password
