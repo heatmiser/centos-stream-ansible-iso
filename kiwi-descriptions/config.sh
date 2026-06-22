@@ -209,20 +209,22 @@ fi
 # Enable SSH service
 systemctl enable sshd.service
 
-# === ACM REGISTRATION SERVICE ===
-# Write /etc/acm-register.conf from credentials parsed above so the
-# acm-register.service can read them at boot time without re-parsing.
-# Only written when ACM_REGISTRATION_ENABLED is present in credentials.
-if [ -n "${ACM_REGISTRATION_ENABLED:-}" ]; then
-	cat > /etc/acm-register.conf << ACM_CONF_EOF
-ACM_DNS_DOMAIN=${ACM_DNS_DOMAIN:-}
-ACM_LISTENER_SERVICE=${ACM_LISTENER_SERVICE:-_acm-listener._tcp}
-ACM_REGISTRATION_ENABLED=${ACM_REGISTRATION_ENABLED:-true}
-ACM_CONF_EOF
-	chmod 644 /etc/acm-register.conf
+# === DCM PHONE-HOME SERVICE ===
+# Write /etc/dcm-phone-home.conf from credentials parsed above so the
+# dcm-phone-home.service can read them at boot time without re-parsing.
+# Written when DCM_REGISTRATION_ENABLED or DCM_DNS_DOMAIN is present.
+# DCM_CONTROLLER_URL takes precedence over DNS SRV discovery when set.
+if [ -n "${DCM_REGISTRATION_ENABLED:-}" ] || [ -n "${DCM_DNS_DOMAIN:-}" ]; then
+	cat > /etc/dcm-phone-home.conf << DCM_CONF_EOF
+DCM_DNS_DOMAIN=${DCM_DNS_DOMAIN:-}
+DCM_CONTROLLER_URL=${DCM_CONTROLLER_URL:-}
+DCM_REGISTRATION_ENABLED=${DCM_REGISTRATION_ENABLED:-true}
+DCM_POLL_INTERVAL=${DCM_POLL_INTERVAL:-30}
+DCM_CONF_EOF
+	chmod 644 /etc/dcm-phone-home.conf
 
-	if [ "${ACM_REGISTRATION_ENABLED}" = "true" ]; then
-		systemctl enable acm-register.service
+	if [ "${DCM_REGISTRATION_ENABLED:-true}" = "true" ]; then
+		systemctl enable dcm-phone-home.service
 	fi
 fi
 
