@@ -1,0 +1,17 @@
+[Unit]
+Description=DCM generic automation phone-home and job executor
+Documentation=https://github.com/heatmiser/centos-stream-ansible-iso
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/dcm-phone-home.conf
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/dcm-phone-home.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
