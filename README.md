@@ -203,8 +203,11 @@ sed -i 's|./keys/automation.pub|./keys/test.pub|' live-image.conf
 # Build
 ./build-live-image.sh
 
-# Test in VM
-qemu-system-x86_64 -m 2048 -cdrom outdir/*.iso -boot d \
+# Test in VM (UEFI required - install edk2-ovmf first)
+qemu-system-x86_64 -m 2048 \
+  -machine q35 -enable-kvm -cpu host \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+  -cdrom outdir/*.iso -boot d \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
   -device virtio-net-pci,netdev=net0
 
