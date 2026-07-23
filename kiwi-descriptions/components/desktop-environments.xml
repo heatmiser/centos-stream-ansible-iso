@@ -74,6 +74,7 @@
 		<package name="curl"/>
 		<package name="dmidecode"/>
 		<package name="libusbx"/>
+		<package name="lldpd"/>
 		<package name="openssh-server"/>
 		<package name="python3"/>
 		<package name="sudo"/>
