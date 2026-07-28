@@ -49,6 +49,9 @@ CENTOS_CONTAINER="quay.io/centos/centos@sha256:f55f0785fbe24a765d263202a26ce6f14
 # Vault password file
 VAULT_PASSWORD_FILE=""
 
+# kiwi-ng build profile
+BUILD_PROFILE="MIN-Live-Automation"
+
 # Build status tracking
 BUILD_SUCCESS=false
 
@@ -358,7 +361,7 @@ build_iso() {
                 erofs-utils xorriso syslinux
 
             # Run kiwi-ng build
-            kiwi-ng --type=iso --profile=MIN-Live-Automation --color-output \
+            kiwi-ng --type=iso --profile=${BUILD_PROFILE} --color-output \
                 system build --description ./ --target-dir /outdir
         "; then
         print_error "ISO build failed"
@@ -378,6 +381,32 @@ build_iso() {
     fi
 
     print_success "ISO build completed successfully"
+}
+
+#######################################
+# Rename outputs when building a non-default profile
+# kiwi derives output filenames from config.xml image name, which is
+# hardcoded to CentOS-Stream-MIN-Live-Automation. Rename to match the
+# actual profile so builds are distinguishable.
+#######################################
+rename_outputs() {
+    if [ "${BUILD_PROFILE}" = "MIN-Live-Automation" ]; then
+        return 0
+    fi
+
+    local default_stem="CentOS-Stream-MIN-Live-Automation"
+    local target_stem="CentOS-Stream-${BUILD_PROFILE}"
+
+    print_info "Renaming output files: ${default_stem} → ${target_stem}"
+
+    for ext in iso packages verified; do
+        local src="${OUTPUT_DIR}/${default_stem}.x86_64-10.${ext}"
+        local dst="${OUTPUT_DIR}/${target_stem}.x86_64-10.${ext}"
+        if [ -f "${src}" ]; then
+            mv "${src}" "${dst}"
+            print_success "Renamed: $(basename "${dst}")"
+        fi
+    done
 }
 
 #######################################
@@ -433,15 +462,18 @@ show_results() {
     print_success "Build process completed!"
     echo
     print_info "ISO image location:"
-    find "${OUTPUT_DIR}" -name "*.iso" -type f -exec ls -lh {} \;
+    find "${OUTPUT_DIR}" -maxdepth 1 -name "*.iso" -type f -exec ls -lh {} \;
     echo
     print_info "Intermediate build artifacts cleaned up (ISO and metadata preserved)"
     echo
+    local iso_path
+    iso_path=$(find "${OUTPUT_DIR}" -maxdepth 1 -name "*.iso" -type f | head -1)
+
     print_info "Next steps:"
     echo "  1. Test the ISO in a VM (UEFI boot):"
     echo "     qemu-system-x86_64 -m 2048 -machine q35 -enable-kvm -cpu host \\"
     echo "       -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \\"
-    echo "       -cdrom ${OUTPUT_DIR}/CentOS-Stream-MIN-Live-Automation.x86_64-10.iso -boot d \\"
+    echo "       -cdrom ${iso_path} -boot d \\"
     echo "       -netdev user,id=net0,hostfwd=tcp::2222-:22 -device virtio-net-pci,netdev=net0"
     echo
     echo "  2. Verify SSH access and Ansible connectivity"
@@ -465,11 +497,21 @@ main() {
                 VAULT_PASSWORD_FILE="$2"
                 shift 2
                 ;;
+            --profile)
+                BUILD_PROFILE="$2"
+                shift 2
+                ;;
+            --profile=*)
+                BUILD_PROFILE="${1#--profile=}"
+                shift
+                ;;
             -h|--help)
-                echo "Usage: $0 [--vault-password-file FILE]"
+                echo "Usage: $0 [--vault-password-file FILE] [--profile PROFILE]"
                 echo
                 echo "Options:"
                 echo "  --vault-password-file FILE    Path to vault password file"
+                echo "  --profile PROFILE             kiwi-ng build profile (default: MIN-Live-Automation)"
+                echo "                                Available: MIN-Live-Automation, MIN-Live-Auto-Cloud"
                 echo "  -h, --help                    Show this help message"
                 echo
                 echo "Configuration:"
@@ -497,6 +539,9 @@ main() {
 
     # Mark build as successful (prevents cleanup of artifacts)
     BUILD_SUCCESS=true
+
+    # Rename outputs to match the build profile
+    rename_outputs
 
     # Show results
     show_results

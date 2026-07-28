@@ -25,7 +25,7 @@
 			filesystem="erofs" erofscompression="lzma,level=9"
 			firmware="uefi" efifatimagesize="30" kernelcmdline="quiet rhgb" mediacheck="true"
 		>
-			<bootloader name="grub2" grub_template="grub.cfg.iso-template" console="console" timeout="60"/>
+			<bootloader name="grub2" grub_template="grub.cfg.iso-template" console="console" timeout="10"/>
 		</type>
 	</preferences>
 	<packages type="iso" patternType="plusRecommended" profiles="MinLiveBoot">

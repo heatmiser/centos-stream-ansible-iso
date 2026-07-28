@@ -24,6 +24,9 @@
 			<requires profile="MIN-Desktop"/>
 			<requires profile="MinLiveBoot"/>
 		</profile>
+		<profile name="MIN-Live-Auto-Cloud" description="Minimal Live ISO for Automation with cloud-init">
+			<requires profile="MIN-Live-Automation"/>
+		</profile>
 		<profile name="XFCE-Live" description="XFCE Live DVD">
 			<requires profile="XFCE-Desktop"/>
 			<requires profile="LiveInstall"/>

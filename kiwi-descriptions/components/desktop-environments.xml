@@ -80,4 +80,7 @@
 		<package name="sudo"/>
 		<ignore name="insights-client"/> <!-- Not in CentOS Stream -->
 	</packages>
+	<packages type="image" profiles="MIN-Live-Auto-Cloud">
+		<package name="cloud-init"/>
+	</packages>
 </image>
