@@ -73,6 +73,7 @@
 		<package name="bind-utils"/>
 		<package name="curl"/>
 		<package name="dmidecode"/>
+		<package name="kernel-modules-extra"/>
 		<package name="libusbx"/>
 		<package name="lldpd"/>
 		<package name="openssh-server"/>
