@@ -28,21 +28,3 @@ LIVE_USER_PASSWORD_HASH=""
 # Provide the full SSH public key as a string
 # Example: LIVE_USER_SSHKEY="ssh-ed25519 AAAAC3... user@host"
 LIVE_USER_SSHKEY=""
-
-# =============================================================================
-# DCM phone-home — controller discovery and job polling
-# =============================================================================
-# Explicit controller URL. If set, DNS SRV lookup is skipped.
-# Example: DCM_CONTROLLER_URL="http://192.168.100.10:8080"
-DCM_CONTROLLER_URL=""
-
-# DNS domain for SRV record lookup at boot time.
-# The node queries: _dcm-automation._tcp.<DCM_DNS_DOMAIN>
-# Must match baremetal_abi_discovery_dns_srv_domain in the Ansible inventory.
-DCM_DNS_DOMAIN=""
-
-# Seconds between job polls when the controller returns a null job.
-DCM_POLL_INTERVAL="30"
-
-# Set to "false" to boot without attempting controller contact (e.g. for testing).
-DCM_REGISTRATION_ENABLED="true"
