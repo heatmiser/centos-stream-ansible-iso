@@ -69,7 +69,7 @@ Two factors set the real minimum for any given deployment:
 
 1. **Kernel + essential services fit in RAM.** For our minimal profile this means the
    kernel, sshd, python3, and any enabled systemd units (cloud-init modules in the
-   cloud variant, dcm-phone-home in automation scenarios). This is well under 256 MB.
+   cloud variant). This is well under 256 MB.
 
 2. **The overlay has enough headroom for the session's writes.** For hardware
    discovery and install-trigger workflows this is small — tens of megabytes at most.

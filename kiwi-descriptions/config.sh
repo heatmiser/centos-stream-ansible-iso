@@ -209,25 +209,6 @@ fi
 # Enable SSH service
 systemctl enable sshd.service
 
-# === DCM PHONE-HOME SERVICE ===
-# Write /etc/dcm-phone-home.conf from credentials parsed above so the
-# dcm-phone-home.service can read them at boot time without re-parsing.
-# Written when DCM_REGISTRATION_ENABLED or DCM_DNS_DOMAIN is present.
-# DCM_CONTROLLER_URL takes precedence over DNS SRV discovery when set.
-if [ -n "${DCM_REGISTRATION_ENABLED:-}" ] || [ -n "${DCM_DNS_DOMAIN:-}" ]; then
-	cat > /etc/dcm-phone-home.conf << DCM_CONF_EOF
-DCM_DNS_DOMAIN=${DCM_DNS_DOMAIN:-}
-DCM_CONTROLLER_URL=${DCM_CONTROLLER_URL:-}
-DCM_REGISTRATION_ENABLED=${DCM_REGISTRATION_ENABLED:-true}
-DCM_POLL_INTERVAL=${DCM_POLL_INTERVAL:-30}
-DCM_CONF_EOF
-	chmod 644 /etc/dcm-phone-home.conf
-
-	if [ "${DCM_REGISTRATION_ENABLED:-true}" = "true" ]; then
-		systemctl enable dcm-phone-home.service
-	fi
-fi
-
 # Configure passwordless sudo for wheel group
 cat > /etc/sudoers.d/90-liveimage-user << SUDO_EOF
 ## Allow members of wheel group to execute any command without password
